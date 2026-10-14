@@ -1,0 +1,20 @@
+{
+  "_doc": "Approval-gate rules. Each command is split into segments at ; && || | and newlines (outside quotes); env assignments, sudo and git's global options (-C, -c) are stripped, then each 'segment' pattern is tested against the segment (case-sensitive unless flags say otherwise) and each 'command' pattern against the whole command. {branches} expands to protectedBranches. 'checks' are the rules that need context (current branch, kube context, paths) and live in approval-gate.js. Edit this file in agent-stack claude/factory and re-run install.ps1.",
+  "protectedBranches": ["staging", "main", "master", "production"],
+  "localKubeContexts": ["docker-desktop", "minikube", "rancher-desktop", "colima", "orbstack", "kind-.*", "k3d-.*"],
+  "scratchDirs": ["C:/Temp", "D:/Temp", "/tmp"],
+  "checks": ["push_protected_branch", "merge_on_protected_branch", "kubectl_remote_context", "rm_outside_repo"],
+  "rules": [
+    { "name": "force push", "segment": "^git\\s+push\\b.*(\\s--force(-with-lease|-if-includes)?(=\\S*)?(\\s|$)|\\s-[a-zA-Z]*f[a-zA-Z]*(\\s|$)|\\s\\+\\S)" },
+    { "name": "gh pr merge", "segment": "^gh\\s+pr\\s+merge\\b" },
+    { "name": "Cloud Run deploy", "segment": "^gcloud\\s+(alpha\\s+|beta\\s+)?run\\s+deploy\\b" },
+    { "name": "Cloud Run job execute", "segment": "^gcloud\\s+(alpha\\s+|beta\\s+)?run\\s+jobs\\s+execute\\b" },
+    { "name": "Cloud Build submit", "segment": "^gcloud\\s+(alpha\\s+|beta\\s+)?builds\\s+submit\\b" },
+    { "name": "Vercel production deploy", "segment": "^(npx\\s+|bunx\\s+|pnpm\\s+(dlx\\s+)?|yarn\\s+)?vercel\\b.*\\s--prod(uction)?\\b" },
+    { "name": "Firebase deploy", "segment": "^(npx\\s+|bunx\\s+|pnpm\\s+(dlx\\s+)?)?firebase\\s+deploy\\b" },
+    { "name": "terraform apply/destroy", "segment": "^terraform\\b.*\\s(apply|destroy)\\b" },
+    { "name": "hard reset to remote protected branch", "segment": "^git\\s+reset\\b.*--hard\\b.*\\s[\\w.-]+/({branches})(\\s|$)" },
+    { "name": "delete protected branch", "segment": "^git\\s+branch\\b.*\\s(-D|-d|--delete)\\b.*\\s({branches})(\\s|$)" },
+    { "name": "destructive SQL via psql", "command": "\\bpsql\\b[\\s\\S]*\\b(DROP\\s+(DATABASE|TABLE)|TRUNCATE)\\b", "flags": "i" }
+  ]
+}

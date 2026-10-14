@@ -1,0 +1,18 @@
+{
+  "owner": 0,
+  "boards": [
+    {
+      "id": 1,
+      "name": "My Project",
+      "repos": ["D:\Projects\MyProject\api", "D:\Projects\MyProject\web"],
+      "integration": "staging",
+      "queue": "D:\Projects\MyProject\.claude\work-queue.md"
+    },
+    {
+      "id": 2,
+      "name": "Side Project",
+      "repos": [],
+      "integration": "main"
+    }
+  ]
+}

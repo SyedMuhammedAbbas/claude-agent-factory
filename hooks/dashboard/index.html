@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Factory</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dd; --accent:#c2541b; --ok:#2e7d32; --warn:#b26a00; --bad:#c62828; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#1f1f1d; --fg:#ececea; --muted:#9a9a94; --line:#33332f; --accent:#ef8a4d; --ok:#66bb6a; --warn:#ffb74d; --bad:#ef5350; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--card); position:sticky; top:0; z-index:1; }
+  h1 { font-size:16px; margin:0; }
+  h2 { font-size:14px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  main { padding:16px; display:grid; gap:16px; max-width:1400px; margin:0 auto; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; min-width:0; }
+  .wrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; white-space:nowrap; }
+  td.wide { white-space:normal; min-width:220px; max-width:420px; overflow-wrap:anywhere; }
+  th { font-weight:600; color:var(--muted); font-size:12px; }
+  tr.click { cursor:pointer; } tr.click:hover, tr.sel { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+  .muted { color:var(--muted); } .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; border:1px solid currentColor; }
+  .active { color:var(--ok); } .idle { color:var(--warn); } .ended { color:var(--muted); } .bad { color:var(--bad); }
+  select, button { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 8px; }
+  code { font-size:12px; overflow-wrap:anywhere; }
+  .grid2 { display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+  a { color:var(--accent); }
+  .note { font-size:12px; color:var(--muted); margin-top:6px; }
+  nav { display:flex; gap:4px; } nav button { cursor:pointer; } nav button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .bar input[type=search] { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 8px; min-width:0; flex:1 1 140px; max-width:260px; }
+  .tabs { display:flex; gap:4px; overflow-x:auto; max-width:100%; padding-bottom:2px; } .tabs button { white-space:nowrap; cursor:pointer; } .tabs button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .stale { background:color-mix(in srgb, var(--warn) 15%, transparent); border:1px solid var(--warn); border-radius:6px; padding:6px 10px; margin-bottom:10px; }
+  #cols { display:flex; gap:10px; overflow-x:auto; align-items:flex-start; padding-bottom:8px; max-width:100%; }
+  .col { flex:0 0 264px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px; display:grid; gap:8px; max-height:75vh; overflow-y:auto; }
+  .col.folded { flex-basis:160px; } .col h3 { margin:0; font-size:13px; display:flex; justify-content:space-between; gap:6px; align-items:center; }
+  .col h3 .n { color:var(--muted); font-weight:400; }
+  .kc { text-align:left; display:grid; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:8px; width:100%; cursor:pointer; font:inherit; color:inherit; }
+  .kc:hover, .kc:focus-visible { border-color:var(--accent); outline:none; }
+  .kc .t { overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .kc .row { display:flex; flex-wrap:wrap; gap:4px; align-items:center; font-size:12px; color:var(--muted); }
+  .chip { display:inline-block; padding:0 6px; border-radius:4px; border:1px solid var(--line); font-size:11px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chip.ok { color:var(--ok); border-color:var(--ok); } .chip.warn { color:var(--warn); border-color:var(--warn); } .chip.bad { color:var(--bad); border-color:var(--bad); } .chip.acc { color:var(--accent); border-color:var(--accent); }
+  #drawer { position:fixed; top:0; right:0; bottom:0; width:min(520px, 100%); background:var(--card); border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(0,0,0,.25); padding:16px; overflow-y:auto; z-index:5; }
+  #drawer[hidden], main[hidden] { display:none; }
+  #drawer h2 { text-transform:none; letter-spacing:0; font-size:16px; color:var(--fg); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Claude Factory</h1>
+  <nav><button type="button" data-view="overview">Overview</button><button type="button" data-view="board">Board</button></nav>
+  <label>Window <select id="days"><option value="1">today</option><option value="2">2 days</option><option value="7">7 days</option></select></label>
+  <span id="status" class="muted">loading…</span>
+</header>
+<main id="overviewMain">
+  <div class="grid2">
+    <section><h2>Pending approvals</h2><div id="approvals" class="wrap"></div></section>
+    <section><h2>Active agents</h2><div id="agents" class="wrap"></div></section>
+  </div>
+  <section><h2>Projects</h2><div id="projects" class="wrap"></div></section>
+  <section><h2>Sessions</h2><div id="sessions" class="wrap"></div>
+    <div class="note">Tokens and cost are read from the transcripts (parent + subagents, each message counted once). Cost is <b>estimated</b> from list API prices (<span id="pricing"></span>); it is not your subscription bill. n/a = model without a confirmed price.</div></section>
+  <section id="detailSec" hidden><h2>Session detail <button id="closeDetail" type="button">close</button></h2><div id="detail"></div></section>
+  <div class="grid2">
+    <section><h2>Errors</h2><div id="errors" class="wrap"></div></section>
+    <section><h2>Open PRs (repos seen today)</h2><div id="prs" class="wrap"></div></section>
+  </div>
+</main>
+<main id="boardMain" hidden>
+  <section>
+    <div class="bar"><div class="tabs" id="boardTabs" role="tablist" aria-label="Projects"></div></div>
+    <div class="bar">
+      <input id="fText" type="search" placeholder="Search tickets" aria-label="Search tickets">
+      <label><input id="fActive" type="checkbox"> only active now</label>
+      <button id="bRefresh" type="button">Refresh</button>
+      <span id="bStatus" class="muted"></span>
+    </div>
+    <div id="bErr" class="stale" hidden></div>
+    <div id="cols" aria-live="polite"></div>
+    <div class="note">Tickets in progress with agents, from work-events.jsonl (agents append lines with work.js). A ticket leaves the board when its latest line is "done", or after 24 hours with no line and no running agent; those are folded into "Done or quiet". Active now = a running subagent whose description names the ticket, or a work line in the last 30 minutes. Branch badges use local refs only (no fetch). Nothing here reads or writes Odoo.</div>
+  </section>
+</main>
+<aside id="drawer" role="dialog" aria-modal="false" aria-labelledby="dTitle" hidden></aside>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n || 0);
+const cost = (t) => t.messages && t.cost === 0 && t.unpriced ? 'n/a' : '$' + t.cost.toFixed(2) + (t.unpriced ? '*' : '');
+const ago = (ts) => { if (!ts) return ''; const s = (Date.now() - Date.parse(ts)) / 1000; return s < 60 ? Math.round(s) + 's ago' : s < 3600 ? Math.round(s / 60) + 'm ago' : s < 86400 ? (s / 3600).toFixed(1) + 'h ago' : (s / 86400).toFixed(1) + 'd ago'; };
+const dur = (ms) => { const m = Math.round(ms / 60000); return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
+const time = (ts) => ts ? new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const table = (head, rows, empty) => rows.length ? `<table><thead><tr>${head.map((h) => `<th${h.startsWith('#') ? ' class="num"' : ''}>${esc(h.replace(/^#/, ''))}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>` : `<p class="muted">${empty}</p>`;
+const tok = (t) => `<td class="num" title="in ${t.input} / out ${t.output} / cache write ${t.cache_write} / cache read ${t.cache_read}">${fmtN(t.total)}</td><td class="num">${cost(t)}</td>`;
+let days = 1, selected = null;
+try { days = Number(localStorage.getItem('days')) || 1; } catch {}
+$('days').value = String(days);
+$('days').onchange = () => { days = Number($('days').value); try { localStorage.setItem('days', days); } catch {} refresh(); };
+$('closeDetail').onclick = () => { selected = null; $('detailSec').hidden = true; refresh(); };
+
+let refreshing = false, prsLoaded = false;
+async function refresh() {
+  if ($('overviewMain').hidden || document.hidden || refreshing) return; // the Overview snapshot is heavy: poll it only while it is on screen, one request at a time
+  refreshing = true;
+  try {
+    const d = await (await fetch('/api?days=' + days)).json();
+    $('status').textContent = `updated ${new Date(d.generated).toLocaleTimeString()} · ${d.sessions.length} sessions`;
+    $('pricing').innerHTML = `<a href="${esc(d.pricing.source)}" target="_blank" rel="noopener">pricing</a> as of ${esc(d.pricing.retrieved)}`;
+    $('approvals').innerHTML = table(['Where', 'Project', 'What', 'Status'], d.approvals.map((a) => `<tr><td>${a.source === 'discord' ? 'Discord #' + esc(a.n) : 'session prompt'}</td><td>${esc(a.project)}</td><td class="wide"><code>${esc(a.what)}</code></td><td>${esc(a.status || ago(a.ts))}</td></tr>`), 'Nothing waiting.');
+    $('agents').innerHTML = table(['Type', 'Project', 'Running for', 'Session'], d.agents.map((a) => `<tr><td>${esc(a.agent_type)}</td><td>${esc(a.project)}</td><td>${ago(a.since).replace(' ago', '')}</td><td class="muted">${esc(a.session.slice(0, 8))}</td></tr>`), 'No subagents running.');
+    $('projects').innerHTML = table(['Project', '#Sessions', '#Active', '#Tokens', '#Est. cost', 'Last activity'], d.projects.map((p) => `<tr><td>${esc(p.project)}</td><td class="num">${p.sessions}</td><td class="num">${p.active}</td>${tok(p.tokens)}<td>${ago(p.last)}</td></tr>`), 'No sessions in this window.');
+    $('sessions').innerHTML = table(['Status', 'Project', 'Title', 'Model', 'Start', 'Duration', 'Stage', '#Tokens', '#Est. cost', 'Branch / diff'], d.sessions.map((s) => `<tr class="click${s.id === selected ? ' sel' : ''}" data-id="${esc(s.id)}"><td><span class="pill ${s.status}">${s.status}</span></td><td>${esc(s.project)}</td><td class="wide">${esc(s.title.slice(0, 120)) || '<span class="muted">(untitled)</span>'}${s.subagents ? ` <span class="muted">+${s.subagents} subagents</span>` : ''}${s.skipped ? ` <span class="bad">${s.skipped} file(s) over 64 MB not counted</span>` : ''}</td><td>${esc(s.models.map((m) => m.replace(/^claude-/, '')).join(', '))}</td><td>${time(s.start)}</td><td>${dur(s.duration_ms)}</td><td class="wide">${esc(s.stage)}${s.last_tool ? `<br><span class="muted">${esc(s.last_tool)}</span>` : ''}${s.hooked ? '' : '<br><span class="muted">no hook events (transcript only)</span>'}</td>${tok(s.tokens)}<td class="wide">${esc(s.branch || '')}${s.diff ? `<br><span class="muted">${esc(s.diff)}</span>` : ''}</td></tr>`), 'No sessions in this window.');
+    document.querySelectorAll('#sessions tr.click').forEach((tr) => { tr.onclick = () => { selected = tr.dataset.id; detail(); refresh(); }; });
+    $('errors').innerHTML = table(['When', 'Project', 'Tool', 'Error'], d.errors.map((e) => `<tr><td>${ago(e.ts)}</td><td>${esc(e.project)}</td><td>${esc(e.tool || e.event)}</td><td class="wide"><span class="bad">${esc(e.error)}</span>${e.summary ? `<br><code>${esc(e.summary)}</code>` : ''}</td></tr>`), 'No tool failures.');
+    if (selected) await detail();
+    if (!prsLoaded) { prsLoaded = true; loadPrs(); }
+  } catch (e) { $('status').textContent = 'dashboard unreachable: ' + e.message; } finally { refreshing = false; }
+}
+
+async function detail() {
+  const d = await (await fetch('/api/session?id=' + encodeURIComponent(selected) + '&days=' + days)).json();
+  $('detailSec').hidden = false;
+  const parts = d.usage ? table(['File', '#Messages', '#Input', '#Output', '#Cache write', '#Cache read', '#Tokens', '#Est. cost'], d.usage.parts.map((p) => `<tr><td>${esc(p.agent)}</td><td class="num">${p.messages}</td><td class="num">${fmtN(p.input)}</td><td class="num">${fmtN(p.output)}</td><td class="num">${fmtN(p.cache_write)}</td><td class="num">${fmtN(p.cache_read)}</td>${tok(p)}</tr>`).concat(`<tr><td><b>total</b></td><td class="num">${d.usage.totals.messages}</td><td class="num">${fmtN(d.usage.totals.input)}</td><td class="num">${fmtN(d.usage.totals.output)}</td><td class="num">${fmtN(d.usage.totals.cache_write)}</td><td class="num">${fmtN(d.usage.totals.cache_read)}</td>${tok(d.usage.totals)}</tr>`), '') : '<p class="muted">No transcript found.</p>';
+  const tl = table(['Time', 'Event', 'Tool', 'Detail'], d.events.slice().reverse().filter((e) => e.event !== 'PostToolUse').slice(0, 200).map((e) => `<tr><td>${new Date(e.ts).toLocaleTimeString()}</td><td${e.error ? ' class="bad"' : ''}>${esc(e.event)}</td><td>${esc(e.tool_name || e.agent_type || '')}</td><td class="wide">${esc(e.tool || e.error_text || e.message || e.prompt || e.reason || e.diff || '')}</td></tr>`), 'No hook events for this session (hooks were not installed when it ran).');
+  $('detail').innerHTML = `<p class="muted"><code>${esc(d.id)}</code></p>${parts}<h2 style="margin-top:12px">Timeline (latest first)</h2><div class="wrap">${tl}</div>`;
+}
+
+async function loadPrs() {
+  try {
+    const d = await (await fetch('/api/prs')).json();
+    const rows = d.flatMap((r) => r.error ? [`<tr><td>${esc(r.project)}</td><td class="wide muted" colspan="2">${esc(r.error)}</td></tr>`] : r.prs.map((p) => `<tr><td>${esc(r.project)}</td><td><a href="${esc(p.url)}" target="_blank" rel="noopener">#${esc(p.number)}</a> ${esc(p.title)}</td><td class="muted">${esc(p.headRefName)}</td></tr>`));
+    $('prs').innerHTML = table(['Repo', 'PR', 'Branch'], rows, 'No open PRs by you in repos seen today.');
+  } catch (e) { $('prs').innerHTML = `<p class="muted">PR lookup failed: ${esc(e.message)}</p>`; }
+}
+setInterval(refresh, 5000);
+// ---------- Board tab ----------
+// Tickets agents are working on, per project. Columns are our pipeline stages, fed by work-events.jsonl; nothing here calls Odoo.
+const B = { boards: [], id: null, data: null, done: false, key: null, loading: false };
+try { B.id = localStorage.getItem('boardId') || null; } catch {}
+function setView(v) {
+  $('overviewMain').hidden = v !== 'overview'; $('boardMain').hidden = v !== 'board';
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+  if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+  if (v === 'board') loadBoard(); else refresh();
+}
+document.querySelectorAll('nav button').forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+
+async function api(url) {
+  const r = await fetch(url);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  return j;
+}
+async function loadBoard() {
+  if ($('boardMain').hidden || document.hidden || B.loading) return; // one request at a time, only while the Board is on screen
+  B.loading = true;
+  try {
+    B.boards = (await api('/api/boards')).boards;
+    const shown = B.boards.filter((b) => b.open);
+    if (!shown.some((b) => String(b.id) === B.id)) B.id = shown.length ? String(shown[0].id) : null;
+    renderTabs();
+    if (!B.id) { B.data = null; $('bStatus').textContent = ''; $('cols').innerHTML = '<p class="muted">No tickets in progress with agents. Agents add them with <code>node work.js &lt;project&gt; &lt;ticket&gt; building --agent "engineer (sonnet)" --note "title"</code>.</p>'; return; }
+    const id = B.id;
+    const d = await api('/api/board?id=' + encodeURIComponent(id));
+    if (id !== B.id) return; // the user switched project meanwhile
+    B.data = d;
+    $('bErr').hidden = true;
+    renderPipeline();
+  } catch (e) { $('bStatus').textContent = ''; $('bErr').hidden = false; $('bErr').textContent = 'Board unavailable: ' + e.message; } finally { B.loading = false; }
+}
+function renderTabs() {
+  const shown = B.boards.filter((b) => b.open);
+  $('boardTabs').innerHTML = shown.map((b) => `<button type="button" role="tab" aria-selected="${String(b.id) === B.id}" class="${String(b.id) === B.id ? 'on' : ''}" data-id="${esc(b.id)}">${esc(b.name)} <span class="muted">${b.open}</span></button>`).join('');
+  $('boardTabs').querySelectorAll('button').forEach((x) => { x.onclick = () => { B.id = x.dataset.id; B.data = null; B.done = false; try { localStorage.setItem('boardId', B.id); } catch {} renderTabs(); $('cols').innerHTML = '<p class="muted">loading…</p>'; loadBoard(); }; });
+}
+function pass(c) {
+  const q = $('fText').value.trim().toLowerCase();
+  if ($('fActive').checked && !c.activeNow) return false;
+  return !q || [c.ticket, c.title, c.agent, c.stage, ...((c.badges && c.badges.branches) || []).map((b) => b.name)].join(' ').toLowerCase().includes(q);
+}
+function badgeChips(bd) {
+  if (!bd) return '';
+  const out = [];
+  if (bd.branches) {
+    const b = bd.branches[0];
+    const st = b.merged === null ? ['', 'unknown'] : b.atTip ? ['', 'at ' + B.data.board.integration + ' tip'] : b.merged ? ['ok', 'merged'] : ['warn', 'not merged'];
+    out.push(`<span class="chip ${st[0]}" title="${esc(b.name)}">branch · ${esc(st[1])}${bd.branches.length > 1 ? ' +' + (bd.branches.length - 1) : ''}</span>`);
+  }
+  if (bd.job) out.push(`<span class="chip">job · ${esc(bd.job.stage || '?')}</span>`);
+  if (bd.bucket) out.push(`<span class="chip">queue ${esc(bd.bucket)}</span>`);
+  return out.length ? `<div class="row">${out.join('')}</div>` : '';
+}
+function badgeLines(bd) {
+  const i = B.data.board.integration, lines = [];
+  for (const b of bd.branches || []) lines.push(`Branch ${b.name} in ${b.repo} (${[b.local && 'local', b.remote && 'origin'].filter(Boolean).join(' + ')}): ${b.merged === null ? 'merge state unknown' : b.atTip ? 'same commit as origin/' + i : b.merged ? 'merged into origin/' + i : 'not merged into origin/' + i}`);
+  if (bd.job) lines.push(`Factory job ${bd.job.id}: stage ${bd.job.stage || '?'}, round ${bd.job.round ?? 0}`);
+  if (bd.bucket) lines.push(`Work queue bucket ${bd.bucket}`);
+  return lines;
+}
+const prefix = (s) => String(s).replace(/^(\d)/, '#$1');
+
+function pcard(c) {
+  const run = c.running ? `${esc(c.agent)} · running ${dur(Date.now() - Date.parse(c.running.since))}` : c.agent ? esc(c.agent) : '<span class="muted">no agent</span>';
+  const chips = [
+    c.pr ? `<a class="chip acc" href="${esc(c.pr)}" target="_blank" rel="noopener" title="${esc(c.pr)}">PR</a>` : '',
+    c.proposal ? `<span class="chip">Hermes #${esc(c.proposal)}</span>` : '',
+  ].filter(Boolean).join('');
+  return `<div class="kc" role="button" tabindex="0" data-k="${esc(c.ticket)}"><div class="t"><b>${esc(prefix(c.ticket))}</b> ${c.title ? esc(c.title) : '<span class="muted">(no note)</span>'}</div>
+    <div class="row">${c.activeNow ? '<span class="chip acc">active now</span>' : ''}<span>${run}</span></div>
+    <div class="row"><span title="${esc(time(c.since))}">updated ${esc(ago(c.since))}</span>${chips}</div>${badgeChips(c.badges)}</div>`;
+}
+function renderPipeline() {
+  const d = B.data;
+  $('bStatus').textContent = `updated ${new Date(d.generated).toLocaleTimeString()} · ${d.tickets} ticket${d.tickets === 1 ? '' : 's'} in progress`;
+  const filtering = $('fText').value || $('fActive').checked;
+  const all = d.stages.flatMap((s) => s.cards);
+  const cols = d.stages.filter((s) => s.cards.length).map((s) => {
+    const shown = s.cards.filter(pass);
+    return `<section class="col" aria-label="${esc(s.name)}"><h3><span>${esc(s.name)} <span class="n">${filtering ? shown.length + ' of ' + s.cards.length : s.cards.length}</span></span></h3>${shown.map(pcard).join('') || '<span class="muted">No cards</span>'}</section>`;
+  });
+  if (d.finishedCount) {
+    cols.push(B.done
+      ? `<section class="col" aria-label="Done or quiet"><h3><span>Done or quiet 24h+ <span class="n">${d.finishedCount}</span></span><button type="button" data-fold="1" aria-expanded="true">collapse</button></h3>${d.finished.map((c) => `<div class="kc" style="cursor:default"><div class="t"><b>${esc(prefix(c.ticket))}</b> ${esc(c.title)}</div><div class="row">${esc(c.stage)}${c.agent ? ' · ' + esc(c.agent) : ''} · ${esc(ago(c.since))}</div></div>`).join('')}${d.finishedCount > d.finished.length ? `<div class="note">Showing the latest ${d.finished.length}.</div>` : ''}</section>`
+      : `<div class="col folded"><h3><span>Done or quiet 24h+ <span class="n">${d.finishedCount}</span></span><button type="button" data-fold="1" aria-expanded="false">expand</button></h3></div>`);
+  }
+  $('cols').innerHTML = (d.tickets ? '' : '<p class="muted">No tickets in progress for this project.</p>') + cols.join('');
+  $('cols').querySelectorAll('[data-fold]').forEach((b) => { b.onclick = () => { B.done = !B.done; renderPipeline(); }; });
+  $('cols').querySelectorAll('.kc[data-k]').forEach((el) => {
+    const open = () => { const c = all.find((x) => x.ticket === el.dataset.k); if (c) openCard(c); };
+    el.onclick = open; el.onkeydown = (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === el) { e.preventDefault(); open(); } };
+    el.querySelectorAll('a').forEach((a) => { a.onclick = (e) => e.stopPropagation(); });
+  });
+}
+$('fActive').onchange = () => { if (B.data) renderPipeline(); };
+$('fText').oninput = () => { if (B.data) renderPipeline(); };
+$('bRefresh').onclick = () => loadBoard();
+
+// ----- drawer -----
+const tl = (events) => '<h2>Timeline</h2>' + (events.length ? '<ul>' + events.map((e) => `<li><span class="muted">${esc(time(e.ts))}</span> <b>${esc(e.stage)}</b>${e.agent ? ' · ' + esc(e.agent) : ''}${e.proposal ? ' · Hermes #' + esc(e.proposal) : ''}${e.note ? '<br>' + esc(e.note) : ''}${e.pr ? ` <a href="${esc(e.pr)}" target="_blank" rel="noopener">PR</a>` : ''}</li>`).join('') + '</ul>' : '<p class="muted">No work events.</p>');
+function openCard(c) {
+  const dr = $('drawer'), lines = badgeLines(c.badges || {});
+  B.key = c.ticket;
+  dr.hidden = false;
+  dr.innerHTML = `<button type="button" id="dClose" style="float:right">close</button><h2 id="dTitle">${esc(prefix(c.ticket))} ${esc(c.title)}</h2>
+    <p class="muted">${esc(c.stage)} · ${esc(c.agent || 'no agent')} · updated ${esc(ago(c.since))}${c.proposal ? ' · Hermes #' + esc(c.proposal) : ''}</p>
+    ${tl(c.events)}
+    <h2>Badges</h2>${lines.length ? '<ul>' + lines.map((l) => `<li>${esc(l)}</li>`).join('') + '</ul>' : '<p class="muted">No branch, job or queue match.</p>'}`;
+  $('dClose').onclick = closeDrawer; $('dClose').focus();
+}
+function closeDrawer() { B.key = null; $('drawer').hidden = true; }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('drawer').hidden) closeDrawer(); });
+setInterval(loadBoard, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { refresh(); loadBoard(); } });
+setView(['overview', 'board'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview');
+</script>
+</body>
+</html>
