@@ -90,10 +90,19 @@ function toNative(p) {
 
 // ---------- context checks ----------
 
+// Returned when git could not name the branch in time (load, slow disk, AV scan). Counts as protected:
+// a branch-dependent push or merge fails closed instead of slipping through.
+const UNKNOWN_BRANCH = Symbol('unknown branch');
+const isProtectedBranch = (b) => b === UNKNOWN_BRANCH || BRANCHES.includes(b);
+
 function currentBranch(dir) {
+  const timeout = Number(process.env.FACTORY_GATE_GIT_TIMEOUT_MS) || 5000;
   try {
-    return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir, timeout: 1500, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
-  } catch { return undefined; }
+    return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir, timeout, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
+  } catch (e) {
+    // git ran and exited non-zero (not a repo, no commits): nothing to protect. Killed or never started: unknown.
+    return typeof e.status === 'number' && !e.signal ? undefined : UNKNOWN_BRANCH;
+  }
 }
 
 const VALUE_FLAGS = new Set(['-o', '--push-option', '--repo', '--receive-pack', '--exec']);
@@ -108,19 +117,19 @@ function pushHitsProtected(t, dir) {
   }
   if (pos.length < 2) {
     if (t.includes('--tags')) return false;
-    return BRANCHES.includes(currentBranch(dir)); // `git push [remote]` pushes the current branch
+    return isProtectedBranch(currentBranch(dir)); // `git push [remote]` pushes the current branch
   }
   return pos.slice(1).some((r) => {
     let dst = r.replace(/^\+/, '').split(':').pop().replace(/^refs\/heads\//, '');
     if (dst === 'HEAD' || dst === '@') dst = currentBranch(dir);
-    return BRANCHES.includes(dst);
+    return isProtectedBranch(dst);
   });
 }
 
 function mergeOnProtected(t, dir) {
   if (t[0] !== 'git' || t[1] !== 'merge') return false;
   if (t.some((x) => ['--abort', '--continue', '--quit', '--skip'].includes(x))) return false;
-  return BRANCHES.includes(currentBranch(dir));
+  return isProtectedBranch(currentBranch(dir));
 }
 
 function kubectlRemote(t, dir) {

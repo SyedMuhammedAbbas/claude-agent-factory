@@ -94,6 +94,15 @@ for (const [cmd, cwd] of allowedCases) {
   const r = classify(cmd, cwd);
   if (r) { fail++; console.log('FALSE HIT', cmd, '->', r); } else console.log('pass     ', JSON.stringify(cmd));
 }
+// git too slow to name the branch: a push or merge that depends on the current branch must fail closed
+process.env.FACTORY_GATE_GIT_TIMEOUT_MS = '1';
+for (const cmd of ['git push', 'git push origin', 'git push origin HEAD', 'git merge task/X-1']) {
+  const r = classify(cmd, feature);
+  if (!r) { fail++; console.log('MISSED (git timeout)', cmd); } else console.log('protected (git timeout)', JSON.stringify(cmd), '->', r);
+}
+delete process.env.FACTORY_GATE_GIT_TIMEOUT_MS;
+// outside any repo git fails fast: nothing to protect
+if (classify('git push', workspace)) { fail++; console.log('FALSE HIT (no repo) git push'); }
 assert.strictEqual(redact('PGPASSWORD=hunter2 psql -c "x"'), 'PGPASSWORD=*** psql -c "x"');
 assert.strictEqual(redact('psql postgres://u:pw@h/db'), 'psql postgres://***@h/db');
 for (const d of [feature, staging, workspace]) fs.rmSync(d, { recursive: true, force: true });

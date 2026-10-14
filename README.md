@@ -99,6 +99,8 @@ A protected command is queued as a proposal in [Hermes](#hermes) and denied with
 
 It fails safe: if Hermes is not running or anything errors, it falls back to Claude Code's own permission prompt. It never allows on error, and the hook is registered with `onFailure: block`.
 
+Rules that depend on the current branch (`git push`, `git push origin HEAD`, `git merge`) also fail closed: if git cannot name the branch within 5 seconds, the branch is treated as protected. Set `FACTORY_GATE_GIT_TIMEOUT_MS` to change the limit.
+
 Edit `hooks/protected.json` and re-run `install.ps1` to change the rules.
 
 ## Dashboard
@@ -167,3 +169,7 @@ node hooks/test/server.test.js
 ```
 node hooks/test/usage.test.js
 ```
+
+## License
+
+[MIT](LICENSE)
