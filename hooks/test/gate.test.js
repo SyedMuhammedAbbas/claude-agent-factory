@@ -36,7 +36,7 @@ const protectedCases = [
   ['gh pr merge 12', feature],
   ['gh pr merge 12 --squash', feature],
   ['gcloud run deploy api --region me-central1', feature],
-  ['gcloud run jobs execute neurax-migrate', feature],
+  ['gcloud run jobs execute db-migrate', feature],
   ['gcloud builds submit .', feature],
   ['npx vercel --prod', feature],
   ['firebase deploy', feature],
